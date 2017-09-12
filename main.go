@@ -57,7 +57,7 @@ func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run SPARQL query
-	results, err := repo.Query("SELECT * WHERE { <" + uri + "> ?p ?o } LIMIT 1")
+	results, err := repo.Query("SELECT * WHERE { <" + uri + "> ?p ?o }")
 	if err != nil {
 		log.Println(err)
 	}
