@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/knakk/rdf"
 	"github.com/knakk/sparql"
 	"log"
 	"net/http"
@@ -47,9 +48,6 @@ type UriResolverHandler struct {
 func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uri := h.Namespace + r.URL.Path[1:]
 
-	// Some debugging output
-	fmt.Fprintf(w, "Showing results from SPARQL endpoint for %s\n\n", uri)
-
 	// Connect to SPARQL Endpoint
 	repo, err := sparql.NewRepo(h.SparqlEndpointUrl,
 		sparql.DigestAuth("", ""),
@@ -60,15 +58,42 @@ func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run SPARQL query
-	results, err := repo.Query("SELECT * WHERE { <" + uri + "> ?p ?o }")
+	results, err := repo.Query("DESCRIBE <" + uri + ">")
 	if err != nil {
 		log.Println(err)
 	}
 
-	fmt.Fprintln(w, "Triples\n")
 	for _, sol := range results.Solutions() {
-		fmt.Fprintln(w, "subject:   "+uri)
-		fmt.Fprintf(w, "predicate: %v\n", sol["p"])
-		fmt.Fprintf(w, "object:    %v\n\n", sol["o"])
+		subj, err := rdf.NewIRI(sol["subject"].String())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		pred, err := rdf.NewIRI(sol["predicate"].String())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var obj rdf.Object
+		switch sol["object"].Type() {
+		case rdf.TermBlank:
+			obj, err = rdf.NewBlank(sol["object"].String())
+			if err != nil {
+				log.Fatal(err)
+			}
+		case rdf.TermIRI:
+			obj, err = rdf.NewIRI(sol["object"].String())
+			if err != nil {
+				log.Fatal(err)
+			}
+		case rdf.TermLiteral:
+			obj, err = rdf.NewLiteral(sol["object"].String())
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		triple := rdf.Triple{subj, pred, obj}
+		fmt.Fprint(w, triple.Serialize(rdf.Turtle))
 	}
 }
