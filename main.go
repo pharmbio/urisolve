@@ -14,45 +14,48 @@ func main() {
 	endpoint := flag.String("endpoint", "", "Provide an URL to a SPARQL 1.1 endpoint")
 	host := flag.String("host", "localhost", "Hostname where to run this service")
 	port := flag.String("port", "8888", "Port for this service")
-
 	flag.Parse()
 	if *endpoint == "" {
 		log.Fatal("No SPARQL Endpoint URL provided. Use the -h flag to view options")
 	}
 
+	// Some status info
 	fmt.Println("Connecting to SPARQL Endpoint with URL:", *endpoint)
-
-	// Main code
 	fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
+	// Start handling requests
 	uriResHandler := &UriResolverHandler{*endpoint}
-
 	http.Handle("/", uriResHandler)
 	http.ListenAndServe(*host+":"+*port, nil)
 }
 
-// --------------------------------------------------------------------------------
-// Uri Resolver Handler
-// --------------------------------------------------------------------------------
+// UriResolverHandler handles RDF URI:s and writes out RDF with any triples
+// connected to the URI in question, to w, based on information in a SPARQL
+// endpoint as indicated with the SparqlEndpointUrl field, which has to be set
+// upon creating a new UriResolverHandler.
 type UriResolverHandler struct {
 	SparqlEndpointUrl string
 }
 
 func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Some debugging output
 	fmt.Fprintf(w, "Showing results from SPARQL endpoint at: %s\n\n", r.URL.Path[1:])
 
+	// Connect to SPARQL Endpoint
 	repo, err := sparql.NewRepo(h.SparqlEndpointUrl,
 		sparql.DigestAuth("", ""),
 		sparql.Timeout(time.Millisecond*1500),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Run SPARQL query
 	res, err := repo.Query("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
 	if err != nil {
 		log.Println(err)
 	}
 
+	// Print out results
 	fmt.Fprintln(w, res)
 }
