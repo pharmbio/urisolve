@@ -12,11 +12,14 @@ import (
 func main() {
 	// Flag handling
 	endpoint := flag.String("endpoint", "", "Provide an URL to a SPARQL 1.1 endpoint")
+	namespace := flag.String("namespace", "", "Specify the URI namespace for which to resolve URIs")
 	host := flag.String("host", "localhost", "Hostname where to run this service")
 	port := flag.String("port", "8888", "Port for this service")
 	flag.Parse()
 	if *endpoint == "" {
 		log.Fatal("No SPARQL Endpoint URL provided. Use the -h flag to view options")
+	} else if *namespace == "" {
+		log.Fatal("No namespace provided. Use the -h flag to view options")
 	}
 
 	// Some status info
@@ -24,7 +27,7 @@ func main() {
 	fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 	// Start handling requests
-	uriResHandler := &UriResolverHandler{*endpoint}
+	uriResHandler := &UriResolverHandler{*namespace, *endpoint}
 	http.Handle("/", uriResHandler)
 	http.ListenAndServe(*host+":"+*port, nil)
 }
@@ -34,6 +37,7 @@ func main() {
 // endpoint as indicated with the SparqlEndpointUrl field, which has to be set
 // upon creating a new UriResolverHandler.
 type UriResolverHandler struct {
+	Namespace         string
 	SparqlEndpointUrl string
 }
 
@@ -51,7 +55,8 @@ func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run SPARQL query
-	res, err := repo.Query("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
+	uri := h.Namespace + r.URL.Path[1:]
+	res, err := repo.Query("SELECT * WHERE { <" + uri + "> ?p ?o } LIMIT 1")
 	if err != nil {
 		log.Println(err)
 	}
