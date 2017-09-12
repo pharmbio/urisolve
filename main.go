@@ -29,7 +29,10 @@ func main() {
 	// Start handling requests
 	uriResHandler := &UriResolverHandler{*namespace, *endpoint}
 	http.Handle("/", uriResHandler)
-	http.ListenAndServe(*host+":"+*port, nil)
+	err := http.ListenAndServe(*host+":"+*port, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // UriResolverHandler handles RDF URI:s and writes out RDF with any triples
