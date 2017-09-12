@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/knakk/rdf"
 	"github.com/knakk/sparql"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -28,7 +30,7 @@ func main() {
 	fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 	// Start handling requests
-	uriResHandler := &UriResolverHandler{*namespace, *endpoint}
+	uriResHandler := &UriResolverHandlerSimple{*namespace, *endpoint}
 	http.Handle("/", uriResHandler)
 	err := http.ListenAndServe(*host+":"+*port, nil)
 	if err != nil {
@@ -96,4 +98,33 @@ func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		triple := rdf.Triple{subj, pred, obj}
 		fmt.Fprint(w, triple.Serialize(rdf.Turtle))
 	}
+}
+
+// UriResolverHandlerSimple works similarly to UriResoverHandler, but does
+// aquire the data from the SPARQL endpoint in a simpler way: It just receives
+// the raw RDF/XML aquired when doing a DESCRIBE SPARQL query, and forwards it
+// to the user, instead of doing any parsing of the results.
+type UriResolverHandlerSimple struct {
+	Namespace         string
+	SparqlEndpointUrl string
+}
+
+func (h *UriResolverHandlerSimple) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	uri := h.Namespace + r.URL.Path[1:]
+
+	reader := strings.NewReader(`query=DESCRIBE <` + uri + `>`)
+	request, err := http.NewRequest("POST", h.SparqlEndpointUrl, reader)
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(request)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Just forward the raw RDF/XML from Blazegraph
+	io.Copy(w, resp.Body)
 }
