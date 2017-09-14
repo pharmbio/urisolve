@@ -66,5 +66,8 @@ func (h *UriResolverHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Just forward the raw RDF/XML from Blazegraph
-	io.Copy(w, response.Body)
+	_, err = io.Copy(w, response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
