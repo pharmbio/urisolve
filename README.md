@@ -28,7 +28,7 @@ not required if you use a port above 1024):
 sudo urisolve \
     -host example.org \
     -port 80 \
-    -namespace http://example.org/ \
+    -urihost http://example.org \
     -endpoint http://endpoint-example.org
 ```
 
