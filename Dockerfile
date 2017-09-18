@@ -14,5 +14,5 @@ RUN go install github.com/golang/pharmbio/urisolve
 # Run the urisolve command by default when the container starts.
 CMD ["/go/bin/urisolve"]
 
-# Document that the service listens on port 8888.
-EXPOSE 8888
+# Document that the service listens on port 8080.
+EXPOSE 8080

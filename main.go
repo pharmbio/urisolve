@@ -14,7 +14,7 @@ func main() {
 	endpoint := flag.String("endpoint", "", "Provide an URL to a SPARQL 1.1 endpoint")
 	urihost := flag.String("urihost", "", "Specify the URI hostname for which to resolve URIs (without trailing slash)")
 	host := flag.String("host", "localhost", "Hostname where to run this service (without trailing slash)")
-	port := flag.String("port", "8888", "Port for this service")
+	port := flag.String("port", "8080", "Port for this service")
 	flag.Parse()
 	if *endpoint == "" {
 		log.Fatal("No SPARQL Endpoint URL provided. Use the -h flag to view options")
