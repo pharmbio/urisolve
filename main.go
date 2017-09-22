@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/knakk/rdf"
 	"io"
 	"log"
 	"net/http"
@@ -48,10 +49,6 @@ func main() {
 		// Start handling requests
 		uriResHandlerSparql := &UriResolverHandlerSparql{*urihost, *endpoint}
 		http.Handle("/", uriResHandlerSparql)
-		err := http.ListenAndServe(*host+":"+*port, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
 	} else if *srcType == "hdt" {
 		// Print some output to the console
 		fmt.Println("Using the following HDT for querying: ", *hdtFilePath)
@@ -60,10 +57,12 @@ func main() {
 		// Start handling requests
 		uriResHandlerHdt := &UriResolverHandlerHdt{*urihost, *hdtFilePath}
 		http.Handle("/", uriResHandlerHdt)
-		err := http.ListenAndServe(*host+":"+*port, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
+	}
+
+	// Start serving requests
+	err := http.ListenAndServe(*host+":"+*port, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -113,30 +112,80 @@ type UriResolverHandlerHdt struct {
 }
 
 func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	enc := rdf.NewTripleEncoder(w, rdf.NTriples)
+
+	var triples []rdf.Triple
+
 	path := r.URL.Path[1:]
 	if path != "favicon.ico" {
 		uri := h.UriHost + "/" + r.URL.Path[1:]
-		fmt.Fprint(w, h.runHdtQuery(uri+" ? ?"))
-		fmt.Fprint(w, h.runHdtQuery("? ? "+uri))
+		triples = append(triples, h.runHdtQuery(uri+" ? ?")...)
+		triples = append(triples, h.runHdtQuery("? ? "+uri)...)
 	}
-}
 
-func (h *UriResolverHandlerHdt) runHdtQuery(query string) string {
-	output := ""
-	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
-	hdtOut, err := Cmd.Output()
-	lines := strings.Split(string(hdtOut), "\n")
-	for _, line := range lines {
-		for _, l := range strings.Split(line, "\r") {
-			if len(l) >= 4 {
-				if l[0:4] == "http" {
-					output = output + l + "\n"
-				}
-			}
+	for _, triple := range triples {
+		err := enc.Encode(triple)
+		if err != nil {
+			log.Fatalf("Could not parse triple: %v\n%v", triple, err)
 		}
 	}
+	enc.Close()
+}
+
+func (h *UriResolverHandlerHdt) runHdtQuery(query string) []rdf.Triple {
+	var triples []rdf.Triple
+
+	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
+	hdtOut, err := Cmd.Output()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return output
+
+	lines := strings.Split(string(hdtOut), "\n")
+	for _, line := range lines {
+		for _, l := range strings.Split(line, "\r") {
+			if len(l) >= 4 && l[0:4] == "http" {
+				triples = append(triples, h.strToTriple(l))
+			}
+		}
+	}
+
+	return triples
+}
+
+func (h *UriResolverHandlerHdt) strToTriple(line string) rdf.Triple {
+	var triple rdf.Triple
+
+	terms := strings.Split(line, " ")
+	if len(terms) >= 3 {
+		sRaw := terms[0]
+		pRaw := terms[1]
+		oRaw := terms[2]
+
+		s, err := rdf.NewIRI(sRaw)
+		if err != nil {
+			log.Fatalf("Could not convert subject to IRI: %s\n", sRaw)
+		}
+
+		p, err := rdf.NewIRI(pRaw)
+		if err != nil {
+			log.Fatalf("Could not convert predicate to IRI: %s\n", pRaw)
+		}
+
+		if oRaw[0:1] == "h" {
+			o, err := rdf.NewIRI(oRaw)
+			if err != nil {
+				log.Fatalf("Could not convert object to IRI: %s\n", oRaw)
+			}
+			triple = rdf.Triple{s, p, o}
+		} else if oRaw[0:1] == "\"" {
+			o, err := rdf.NewLiteral(oRaw)
+			if err != nil {
+				log.Fatalf("Could not convert object to Literal: %s\n", oRaw)
+			}
+			triple = rdf.Triple{s, p, o}
+		}
+	}
+
+	return triple
 }
