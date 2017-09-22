@@ -121,11 +121,17 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *UriResolverHandlerHdt) runHdtQuery(query string) string {
+func (h *UriResolverHandlerHdt) runHdtQuery(query string) (output string) {
 	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
 	hdtOut, err := Cmd.Output()
+	lines := strings.Split(string(hdtOut), "\n")
+	for _, line := range lines {
+		if len(line) > 0 && line[0:4] == "http" {
+			output = output + line + "\n"
+		}
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	return string(hdtOut)
+	return output
 }
