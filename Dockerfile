@@ -4,12 +4,13 @@
 FROM golang
 
 # Copy the local package files to the container's workspace.
-ADD . /go/src/github.com/golang/pharmbio/urisolve
+ADD . /go/src/github.com/pharmbio/urisolve
 
 # Build the urisolve command inside the container.
 # (You may fetch or manage dependencies here,
 # either manually or with a tool like "godep".)
-RUN go install github.com/golang/pharmbio/urisolve
+RUN go get github.com/knakk/rdf
+RUN go install github.com/pharmbio/urisolve
 
 # Run the urisolve command by default when the container starts.
 CMD ["/go/bin/urisolve"]
