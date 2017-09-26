@@ -9,6 +9,20 @@ Picture above: A screenshot showing urisolve in action, running on [MiniShift](h
 
 ## Installation
 
+### Using Docker
+
+(Assumes that you have installed docker and the docker service is running).
+
+- Pull the docker image
+  ```bash
+  docker pull farmbio/urisolve
+  ```
+- Start the example service, based on the example dataset with data about 10 compounds
+  ```bash
+  docker run -p 8080:8080 -it --rm farmbio/urisolve
+  ```
+- Access the service with the example data in your browser at http://localhost:8080/cplogd/Compound1
+
 ### Build from source
 
 For now, building from source is the only available option.
