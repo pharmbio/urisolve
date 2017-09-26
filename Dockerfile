@@ -15,7 +15,7 @@ ADD . /go/src/github.com/pharmbio/urisolve
 RUN go install github.com/pharmbio/urisolve
 
 # Run the urisolve command by default when the container starts.
-CMD ["/go/bin/urisolve", "-srctype", "hdt", "-hdtfile", "$HDTFILE", "-urihost", "http://example.org"]
+CMD /go/bin/urisolve -srctype hdt -hdtfile $HDTFILE -urihost http://example.org
 
 # Document that the service listens on port 8080.
 EXPOSE 8080
