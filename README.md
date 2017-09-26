@@ -3,6 +3,10 @@
 A simple web server that resolves RDF URIs and returns RDF with any triples
 connected to the URI in question.
 
+![Screenshot](urisolve-screenshot.png)
+
+Picture above: A screenshot showing urisolve in action, running on [MiniShift](https://github.com/MiniShift/minishift).
+
 ## Installation
 
 ### Build from source
