@@ -22,6 +22,9 @@ ADD . /usr/go/src/github.com/pharmbio/urisolve
 # either manually or with a tool like "godep".)
 RUN go install github.com/pharmbio/urisolve
 
+# We must not run as root, because of OpenShift policy
+USER 1001
+
 # Run the urisolve command by default when the container starts.
 CMD urisolve -srctype hdt -hdtfile $HDTFILE -urihost http://rdf.pharmb.io -host $HOSTNAME -port 8080
 
