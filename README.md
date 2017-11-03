@@ -60,7 +60,7 @@ urisolve \
 
 If, instead of a SPARQL endpoint, you want to use an [(RDF) HDT](http://www.rdfhdt.org)
 file as a data source (this ia an increasingly interesting option, as the
-tooling around HDT matures), you can do it like this (not that this requires
+tooling around HDT matures), you can do it like this (note that this requires
 the [C++ version of HDT tools](https://github.com/rdfhdt/hdt-cpp) installed):
 
 ```bash
