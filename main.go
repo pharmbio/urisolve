@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -121,8 +122,18 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 	path := r.URL.Path[1:]
 	if path != "favicon.ico" {
 		uri := h.UriHost + "/" + r.URL.Path[1:]
-		triples = append(triples, h.runHdtQuery(uri+" ? ?")...)
-		triples = append(triples, h.runHdtQuery("? ? "+uri)...)
+		newTriples, err := h.runHdtQuery(uri + " ? ?")
+		if err != nil {
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		triples = append(triples, newTriples...)
+		newTriples, err = h.runHdtQuery("? ? " + uri)
+		if err != nil {
+			http.Error(w, "Error: " + err.Error(), http.StatusInternalServerError)
+			return
+		}
+		triples = append(triples, newTriples...)
 	}
 
 	for _, triple := range triples {
@@ -134,14 +145,14 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 	enc.Close()
 }
 
-func (h *UriResolverHandlerHdt) runHdtQuery(query string) []rdf.Triple {
+func (h *UriResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) {
 	var triples []rdf.Triple
 
 	if validQuery(query) {
 		Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
 		hdtOut, err := Cmd.Output()
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 
 		lines := strings.Split(string(hdtOut), "\n")
@@ -153,10 +164,10 @@ func (h *UriResolverHandlerHdt) runHdtQuery(query string) []rdf.Triple {
 			}
 		}
 	} else {
-		log.Fatal("Query contains invalid invalid characters")
+		return nil, errors.New("Query contains invalid invalid characters")
 	}
 
-	return triples
+	return triples, nil
 }
 
 func validQuery(query string) bool {
