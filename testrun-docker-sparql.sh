@@ -5,8 +5,10 @@ docker run \
     -p 8080:8080 \
     --name urisolve-test-sparql \
     --hostname urisolve \
-    --rm farmbio/urisolve \
+    --rm \
+    farmbio/urisolve \
     urisolve \
+    -srctype sparql \
     -endpoint https://query.wikidata.org/sparql \
     -urihost http://www.wikidata.org \
     -host urisolve \
