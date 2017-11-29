@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/knakk/rdf"
 	"io"
 	"log"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"strings"
+
+	"github.com/knakk/rdf"
 )
 
 func main() {
@@ -135,22 +137,35 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 func (h *UriResolverHandlerHdt) runHdtQuery(query string) []rdf.Triple {
 	var triples []rdf.Triple
 
-	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
-	hdtOut, err := Cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
+	if validQuery(query) {
+		Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
+		hdtOut, err := Cmd.Output()
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	lines := strings.Split(string(hdtOut), "\n")
-	for _, line := range lines {
-		for _, l := range strings.Split(line, "\r") {
-			if len(l) >= 4 && l[0:4] == "http" {
-				triples = append(triples, h.strToTriple(l))
+		lines := strings.Split(string(hdtOut), "\n")
+		for _, line := range lines {
+			for _, l := range strings.Split(line, "\r") {
+				if len(l) >= 4 && l[0:4] == "http" {
+					triples = append(triples, h.strToTriple(l))
+				}
 			}
 		}
+	} else {
+		log.Fatal("Query contains invalid invalid characters")
 	}
 
 	return triples
+}
+
+func validQuery(query string) bool {
+	validPattern := `(\?|[A-Za-z0-9\.:\/]+) (\?|[A-Za-z0-9\.:\/]+) (\?|[A-Za-z0-9\.:\/]+)`
+	validRegexp, err := regexp.Compile(validPattern)
+	if err != nil {
+		log.Fatal("Invalid regex: %s", validPattern)
+	}
+	return validRegexp.MatchString(query)
 }
 
 func (h *UriResolverHandlerHdt) strToTriple(line string) rdf.Triple {
