@@ -183,7 +183,7 @@ func (h *UriResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) 
 }
 
 func validQuery(query string) bool {
-	charClass := `[A-Za-z0-9:\/\.\_\#\%]`
+	charClass := `[A-Za-z0-9:\/\._#%]`
 	validPattern := `(\?|` + charClass + `+) (\?|` + charClass + `+) (\?|` + charClass + `+)`
 	validRegexp, err := regexp.Compile(validPattern)
 	if err != nil {
