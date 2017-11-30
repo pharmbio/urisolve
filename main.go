@@ -183,7 +183,7 @@ func validQuery(query string) bool {
 	validPattern := `(\?|` + charClass + `+) (\?|` + charClass + `+) (\?|` + charClass + `+)`
 	validRegexp, err := regexp.Compile(validPattern)
 	if err != nil {
-		log.Fatal("Invalid regex: %s", validPattern)
+		log.Fatalf("Invalid regex: %s\n", validPattern)
 	}
 	return validRegexp.MatchString(query)
 }
