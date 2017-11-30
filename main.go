@@ -90,19 +90,22 @@ func (h *UriResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	request, err := http.NewRequest("POST", h.SparqlEndpointUrl, reader)
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Just forward the raw RDF/XML from Blazegraph
 	_, err = io.Copy(w, response.Body)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -130,7 +133,7 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 		triples = append(triples, newTriples...)
 		newTriples, err = h.runHdtQuery("? ? " + uri)
 		if err != nil {
-			http.Error(w, "Error: " + err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		triples = append(triples, newTriples...)
@@ -139,7 +142,8 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 	for _, triple := range triples {
 		err := enc.Encode(triple)
 		if err != nil {
-			log.Fatalf("Could not parse triple: %v\n%v", triple, err)
+			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 	enc.Close()
@@ -148,23 +152,27 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 func (h *UriResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) {
 	var triples []rdf.Triple
 
-	if validQuery(query) {
-		Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
-		hdtOut, err := Cmd.Output()
-		if err != nil {
-			return nil, err
-		}
+	if !validQuery(query) {
+		return nil, errors.New("Query contains invalid invalid characters")
+	}
 
-		lines := strings.Split(string(hdtOut), "\n")
-		for _, line := range lines {
-			for _, l := range strings.Split(line, "\r") {
-				if len(l) >= 4 && l[0:4] == "http" {
-					triples = append(triples, h.strToTriple(l))
+	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
+	hdtOut, err := Cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(hdtOut), "\n")
+	for _, line := range lines {
+		for _, l := range strings.Split(line, "\r") {
+			if len(l) >= 4 && l[0:4] == "http" {
+				triple, err := h.strToTriple(l)
+				if err != nil {
+					return nil, err
 				}
+				triples = append(triples, triple)
 			}
 		}
-	} else {
-		return nil, errors.New("Query contains invalid invalid characters")
 	}
 
 	return triples, nil
@@ -179,7 +187,7 @@ func validQuery(query string) bool {
 	return validRegexp.MatchString(query)
 }
 
-func (h *UriResolverHandlerHdt) strToTriple(line string) rdf.Triple {
+func (h *UriResolverHandlerHdt) strToTriple(line string) (rdf.Triple, error) {
 	var triple rdf.Triple
 
 	terms := strings.Split(line, " ")
@@ -190,28 +198,28 @@ func (h *UriResolverHandlerHdt) strToTriple(line string) rdf.Triple {
 
 		s, err := rdf.NewIRI(sRaw)
 		if err != nil {
-			log.Fatalf("Could not convert subject to IRI: %s\n", sRaw)
+			return rdf.Triple{}, fmt.Errorf("Could not convert subject to IRI: %s (%s)", sRaw, err.Error())
 		}
 
 		p, err := rdf.NewIRI(pRaw)
 		if err != nil {
-			log.Fatalf("Could not convert predicate to IRI: %s\n", pRaw)
+			return rdf.Triple{}, fmt.Errorf("Could not convert predicate to IRI: %s (%s)", pRaw, err.Error())
 		}
 
 		if oRaw[0:1] == "h" {
 			o, err := rdf.NewIRI(oRaw)
 			if err != nil {
-				log.Fatalf("Could not convert object to IRI: %s\n", oRaw)
+				return rdf.Triple{}, fmt.Errorf("Could not convert object to IRI: %s (%s)", oRaw, err.Error())
 			}
 			triple = rdf.Triple{s, p, o}
 		} else if oRaw[0:1] == "\"" {
 			o, err := rdf.NewLiteral(oRaw)
 			if err != nil {
-				log.Fatalf("Could not convert object to Literal: %s\n", oRaw)
+				return rdf.Triple{}, fmt.Errorf("Could not convert object to Literal: %s (%s)", oRaw, err.Error())
 			}
 			triple = rdf.Triple{s, p, o}
 		}
 	}
 
-	return triple
+	return triple, nil
 }
