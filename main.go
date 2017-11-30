@@ -42,6 +42,18 @@ func main() {
 		log.Fatal("No urihost provided. Use the -h flag to view options")
 	}
 
+	homePageHtml := `<html><head>
+	<title>URI Resolver service</title>
+	<style>
+	body { font-family: arial, helvetica, sans-serif; }
+	</style>
+	</head>
+	<body>
+	<h1>Welcome to the URI resolver service</h1>
+	<p>Specify a specific URL in order to view data</p>
+	</body>
+	</html>`
+
 	// Execute the relevant HTTP handler, based on the source type selected
 	if *srcType == "sparql" {
 		// Print some output to the console
@@ -49,7 +61,7 @@ func main() {
 		fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 		// Start handling requests
-		uriResHandlerSparql := &URIResolverHandlerSparql{*urihost, *endpoint}
+		uriResHandlerSparql := &URIResolverHandlerSparql{*urihost, *endpoint, homePageHtml}
 		http.Handle("/", uriResHandlerSparql)
 	} else if *srcType == "hdt" {
 		// Print some output to the console
@@ -57,7 +69,7 @@ func main() {
 		fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 		// Start handling requests
-		uriResHandlerHdt := &URIResolverHandlerHdt{*urihost, *hdtFilePath}
+		uriResHandlerHdt := &URIResolverHandlerHdt{*urihost, *hdtFilePath, homePageHtml}
 		http.Handle("/", uriResHandlerHdt)
 	}
 
@@ -75,10 +87,18 @@ func main() {
 type URIResolverHandlerSparql struct {
 	URIHost           string
 	SparqlEndpointUrl string
+	HomePageContent   string
 }
 
 func (h *URIResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uri := h.URIHost + "/" + r.URL.Path[1:]
+	path := r.URL.Path[1:]
+
+	if path == "" { // Handle the home page URL
+		w.Write([]byte(h.HomePageContent))
+		return
+	}
+
+	uri := h.URIHost + "/" + path
 
 	sparqlQuery := `query=DESCRIBE <` + uri + `>`
 
@@ -112,16 +132,23 @@ func (h *URIResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Requ
 // connected to the URI in question, to w, based on information in a (RDF)HDT
 // dataset file. You can find more info about hDT at http://www.rdfhdt.org
 type URIResolverHandlerHdt struct {
-	URIHost     string
-	HdtFilePath string
+	URIHost         string
+	HdtFilePath     string
+	HomePageContent string
 }
 
 func (h *URIResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path[1:]
+
+	if path == "" { // Handle the home page URL
+		w.Write([]byte(h.HomePageContent))
+		return
+	}
+
 	enc := rdf.NewTripleEncoder(w, rdf.NTriples)
 
 	var triples []rdf.Triple
 
-	path := r.URL.Path[1:]
 	if path != "favicon.ico" {
 		uri := h.URIHost + "/" + r.URL.Path[1:]
 		if !validUri(uri) {
