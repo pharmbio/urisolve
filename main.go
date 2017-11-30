@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -50,7 +49,7 @@ func main() {
 		fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 		// Start handling requests
-		uriResHandlerSparql := &UriResolverHandlerSparql{*urihost, *endpoint}
+		uriResHandlerSparql := &URIResolverHandlerSparql{*urihost, *endpoint}
 		http.Handle("/", uriResHandlerSparql)
 	} else if *srcType == "hdt" {
 		// Print some output to the console
@@ -58,7 +57,7 @@ func main() {
 		fmt.Println("Starting to serve at: " + *host + ":" + *port + " ...")
 
 		// Start handling requests
-		uriResHandlerHdt := &UriResolverHandlerHdt{*urihost, *hdtFilePath}
+		uriResHandlerHdt := &URIResolverHandlerHdt{*urihost, *hdtFilePath}
 		http.Handle("/", uriResHandlerHdt)
 	}
 
@@ -69,17 +68,17 @@ func main() {
 	}
 }
 
-// UriResolverHandlerSparql handles RDF URI:s and writes out RDF with any triples
+// URIResolverHandlerSparql handles RDF URI:s and writes out RDF with any triples
 // connected to the URI in question, to w, based on information in a SPARQL
 // endpoint as indicated with the SparqlEndpointUrl field, which has to be set
-// upon creating a new UriResolverHandlerSparql.
-type UriResolverHandlerSparql struct {
-	UriHost           string
+// upon creating a new URIResolverHandlerSparql.
+type URIResolverHandlerSparql struct {
+	URIHost           string
 	SparqlEndpointUrl string
 }
 
-func (h *UriResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uri := h.UriHost + "/" + r.URL.Path[1:]
+func (h *URIResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	uri := h.URIHost + "/" + r.URL.Path[1:]
 
 	sparqlQuery := `query=DESCRIBE <` + uri + `>`
 
@@ -109,22 +108,26 @@ func (h *UriResolverHandlerSparql) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// UriResolverHandlerHdt handles RDF URI:s and writes out RDF with any triples
+// URIResolverHandlerHdt handles RDF URI:s and writes out RDF with any triples
 // connected to the URI in question, to w, based on information in a (RDF)HDT
 // dataset file. You can find more info about hDT at http://www.rdfhdt.org
-type UriResolverHandlerHdt struct {
-	UriHost     string
+type URIResolverHandlerHdt struct {
+	URIHost     string
 	HdtFilePath string
 }
 
-func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *URIResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	enc := rdf.NewTripleEncoder(w, rdf.NTriples)
 
 	var triples []rdf.Triple
 
 	path := r.URL.Path[1:]
 	if path != "favicon.ico" {
-		uri := h.UriHost + "/" + r.URL.Path[1:]
+		uri := h.URIHost + "/" + r.URL.Path[1:]
+		if !validUri(uri) {
+			http.Error(w, "Error: Invalid URI (invalid characters in URI)", http.StatusBadRequest)
+			return
+		}
 		newTriples, err := h.runHdtQuery(uri + " ? ?")
 		if err != nil {
 			http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
@@ -153,12 +156,8 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 	enc.Close()
 }
 
-func (h *UriResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) {
+func (h *URIResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) {
 	var triples []rdf.Triple
-
-	if !validQuery(query) {
-		return nil, errors.New("Query contains invalid invalid characters")
-	}
 
 	Cmd := exec.Command("hdtSearch", "-q", query, h.HdtFilePath)
 	hdtOut, err := Cmd.Output()
@@ -182,18 +181,17 @@ func (h *UriResolverHandlerHdt) runHdtQuery(query string) ([]rdf.Triple, error) 
 	return triples, nil
 }
 
-func validQuery(query string) bool {
-	charClass := `[A-Za-z0-9:\/\.\-_#%]`
-	validPattern := `^(\?|` + charClass + `+) (\?|` + charClass + `+) (\?|` + charClass + `+)$`
+func validUri(uri string) bool {
+	validPattern := `^[A-Za-z0-9:\/\.\-_#%]+$`
 	validRegexp, err := regexp.Compile(validPattern)
 	if err != nil {
 		log.Fatalf("Invalid regex: %s\n", validPattern)
 	}
-	return validRegexp.MatchString(query)
+	return validRegexp.MatchString(uri)
 
 }
 
-func (h *UriResolverHandlerHdt) strToTriple(line string) (rdf.Triple, error) {
+func (h *URIResolverHandlerHdt) strToTriple(line string) (rdf.Triple, error) {
 	var triple rdf.Triple
 
 	terms := strings.Split(line, " ")

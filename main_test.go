@@ -4,23 +4,19 @@ import (
 	"testing"
 )
 
-func TestValidQuery(t *testing.T) {
-	queries := map[string]bool{
-		"? http://ex.org/ex; http://ex.org/ex": false,
-		"? http://ex.org/;ex http://ex.org/ex": false,
-		"":                                       false,
-		"? ? ?":                                  true,
-		"? ? http://ex.org/ex":                   true,
-		"? http://ex.org/ex ?":                   true,
-		"http://ex.org/ex ? ?":                   true,
-		"http://ex.org/ex ? http://ex.org/ex":    true,
-		"http://ex.org/ex http://ex.org/ex ?":    true,
-		"? http://ex.org/ex http://ex.org/ex":    true,
-		"? ? https://ex.org/foo-bar.php#foo_bar": true,
+func TestValidUri(t *testing.T) {
+	uris := map[string]bool{
+		"http://ex.org/ex;":                  false,
+		"http://ex.org/;ex":                  false,
+		"https://ex.org/foo-bar.php#foo_bar": true,
 	}
-	for q, shouldBeOk := range queries {
-		if validQuery(q) != shouldBeOk {
-			t.Errorf("Query was %v. Expected %v: %s", !shouldBeOk, shouldBeOk, q)
+	var explanation = map[bool]string{
+		true:  "allowed",
+		false: "forbidden",
+	}
+	for uri, shouldBeOk := range uris {
+		if validUri(uri) != shouldBeOk {
+			t.Errorf("Uri pattern was %s. Expected it to be %s: %s", explanation[!shouldBeOk], explanation[shouldBeOk], uri)
 		}
 	}
 }
