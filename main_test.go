@@ -5,15 +5,22 @@ import (
 )
 
 func TestValidQuery(t *testing.T) {
-	saneQuery := "? http://ex.org/ex http://ex.org/ex"
-	saneOk := validQuery(saneQuery)
-	if !saneOk {
-		t.Errorf("Sane query returned error: %s", saneQuery)
+	queries := map[string]bool{
+		"? http://ex.org/ex; http://ex.org/ex": false,
+		"? http://ex.org/;ex http://ex.org/ex": false,
+		"":                                       false,
+		"? ? ?":                                  true,
+		"? ? http://ex.org/ex":                   true,
+		"? http://ex.org/ex ?":                   true,
+		"http://ex.org/ex ? ?":                   true,
+		"http://ex.org/ex ? http://ex.org/ex":    true,
+		"http://ex.org/ex http://ex.org/ex ?":    true,
+		"? http://ex.org/ex http://ex.org/ex":    true,
+		"? ? https://ex.org/foo-bar.php#foo_bar": true,
 	}
-
-	nastyQuery := "? http://ex.org/ex; http://ex.org/ex"
-	nastyOk := validQuery(nastyQuery)
-	if nastyOk {
-		t.Errorf("Nasty query not stopped: %s", nastyQuery)
+	for q, shouldBeOk := range queries {
+		if validQuery(q) != shouldBeOk {
+			t.Errorf("Query was %v. Expected %v: %s", !shouldBeOk, shouldBeOk, q)
+		}
 	}
 }
