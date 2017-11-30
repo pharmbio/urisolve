@@ -137,6 +137,10 @@ func (h *UriResolverHandlerHdt) ServeHTTP(w http.ResponseWriter, r *http.Request
 			return
 		}
 		triples = append(triples, newTriples...)
+		if len(triples) == 0 {
+			http.Error(w, "Could not find any triples linking to this URI", http.StatusNotFound)
+			return
+		}
 	}
 
 	for _, triple := range triples {
