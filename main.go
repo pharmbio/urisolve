@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -42,17 +43,22 @@ func main() {
 		log.Fatal("No urihost provided. Use the -h flag to view options")
 	}
 
-	homePageHtml := `<html><head>
-	<title>URI Resolver service</title>
-	<style>
-	body { font-family: arial, helvetica, sans-serif; }
-	</style>
-	</head>
-	<body>
-	<h1>Welcome to the URI resolver service</h1>
-	<p>Specify a specific URL in order to view data</p>
-	</body>
+	// Allow setting the default home page
+	homePageHtml := os.Getenv("URISOLVE_HOMEPAGEHTML")
+	if homePageHtml == "" {
+		homePageHtml = `<html>
+		<head>
+			<title>URI Resolver service</title>
+			<style>
+				body { font-family: arial, helvetica, sans-serif; }
+			</style>
+		</head>
+		<body>
+			<h1>Welcome to the URI resolver service</h1>
+			<p>Specify a specific URL in order to view data</p>
+		</body>
 	</html>`
+	}
 
 	// Execute the relevant HTTP handler, based on the source type selected
 	if *srcType == "sparql" {
