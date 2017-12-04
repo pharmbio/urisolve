@@ -79,3 +79,10 @@ To view the options available, run:
 ```bash
 urisolve -h
 ```
+
+## Acknowledgements
+
+This tool makes use of (either directly or indirectly) the following dependencies:
+
+- The HDT part of this tool leverages the [C++ HDT tools](https://github.com/rdfhdt/hdt-cpp), to query data in [RDF-HDT format](http://www.rdfhdt.org/).
+- This tool also makes use of the [rdf library for Go](https://github.com/knakk/rdf), by [Petter Goksøyr Åsen](https://github.com/boutros) to parse RDF data inside Go.
